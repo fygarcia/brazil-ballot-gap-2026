@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Ballot Gap Lab — shape of the 18:15–20:15 gap, Brazil 2026 1st round</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="style.css">
+<link rel="icon" href="data:,">
+</head>
+<body>
+<header>
+  <h1>Ballot Gap Lab</h1>
+  <p class="sub">How hard is it for Brazil's real ballot-transmission process to produce the near-straight decline in the Flávio − Lula gap seen between <b>18:15 and 20:15</b> (Brasília) on 4 Oct 2026? This page does not assume the count was clean or rigged. It measures the shape.</p>
+</header>
+
+<section class="card" id="math">
+  <h2>Why a straight line is a non-trivial shape</h2>
+  <p>The national gap is a <b>cumulative ratio</b>: G(t) = (F(t) − L(t)) / V(t). If a batch of ΔV valid votes arrives with margin m (Flávio − Lula, in points), then
+  <code>G<sub>new</sub> = (G·V + m·ΔV) / (V + ΔV)</code>, i.e. <code>dG/dt = (m − G) · V′(t) / V(t)</code>.</p>
+  <p>With a <b>fixed incoming mix</b> m and a steady flow V′, the slope shrinks like 1/V: each new batch is a smaller share of a bigger pile, so the gap curve bends (a hyperbola, flattening over time). A <b>constant slope b</b> needs <code>m(t) = G(t) + b · V(t) / V′(t)</code>: the incoming Lula advantage has to grow as the pile grows, or the arrival rate V′ has to rise in step with V. The models below test whether real arrival order (which part of the country reports when) does that on its own.</p>
+</section>
+
+<section class="card" id="datacard">
+  <h2>Data used <span class="small" id="built"></span></h2>
+  <div id="datasummary" class="small"></div>
+  <details><summary>Target-series flags (timestamp reconciliation and consistency checks)</summary><ul id="flags" class="small"></ul></details>
+  <details><summary>Build notes</summary><ul id="notes" class="small"></ul></details>
+</section>
+
+<section class="card" id="controls">
+  <h2>Scenario</h2>
+  <div class="grid">
+    <label>Arrival model
+      <select id="scenario"></select></label>
+    <label>Transmission-rate shape (clock mapping)
+      <select id="pace">
+        <option value="observed">observed 2026 % counted (TSE file times via Urna Aberta)</option>
+        <option value="steady">steady (linear 18:00→20:04, same anchors)</option>
+        <option value="slow">slow / back-loaded (rate rises through window)</option>
+        <option value="peaked">peaked (early burst ~18:40)</option>
+        <option value="native">native latent clock (2022 times / model delays, no 2026 pace)</option>
+      </select></label>
+    <label>Extra N/NE delay (min): <output id="neDelayV"></output>
+      <input type="range" id="neDelay" min="0" max="120" step="5" value="0"></label>
+    <label>Within-state randomness: <output id="withinStateV"></output>
+      <input type="range" id="withinState" min="0" max="1" step="0.05" value="0"></label>
+    <label>Cartório (zona) jitter σ (min): <output id="zoneJitterV"></output>
+      <input type="range" id="zoneJitter" min="0" max="60" step="1" value="10"></label>
+    <label>Section-cell jitter σ (min): <output id="cellJitterV"></output>
+      <input type="range" id="cellJitter" min="0" max="30" step="1" value="3"></label>
+    <label>Fast-first base median (min after 17:00): <output id="ffBaseV"></output>
+      <input type="range" id="ffBase" min="30" max="180" step="5" value="95"></label>
+    <label>Fast-first lognormal σ: <output id="ffSigmaV"></output>
+      <input type="range" id="ffSigma" min="0.05" max="1" step="0.05" value="0.35"></label>
+    <label>Constant-mix noise per 10-min batch (pts): <output id="mixNoiseV"></output>
+      <input type="range" id="mixNoise" min="0" max="5" step="0.25" value="1"></label>
+    <label>Monte Carlo runs <input type="number" id="runs" value="100" min="1" max="2000"></label>
+    <label>Seed <input type="number" id="seed" value="1"></label>
+    <label><span><input type="checkbox" id="prior"> Randomize knobs per run (prior ranges)</span><span class="small" id="priorNote"></span></label>
+  </div>
+  <p class="small" id="scenarioNote"></p>
+  <button id="run">Run scenario</button>
+  <button id="runAll">Run all models (table)</button>
+  <span id="status" class="small"></span>
+</section>
+
+<section class="card">
+  <h2>Shares and gap vs Brasília time</h2>
+  <p class="small">Thin lines: individual Monte Carlo runs (green-tinted = flat within 0.3 pt in the window). Filled markers: published snapshots whose TSE file time is known (Urna Aberta stored TSE <code>hg</code>). Hollow markers: news-only timestamps (time uncertain). Shaded band: 18:15–20:15. Every run ends at the registered 2026 result.</p>
+  <canvas id="cShares" width="1100" height="320"></canvas>
+  <canvas id="cGap" width="1100" height="320"></canvas>
+  <div id="runSummary" class="summary"></div>
+</section>
+
+<section class="card">
+  <h2>Incoming path over the window (10-minute batches)</h2>
+  <p class="small">Margin = (Flávio − Lula) as % of the valid votes arriving in each 10-minute batch. Orange band: flat runs (p10–p90, line = median). Grey: all runs median. Purple dashed: what an exactly straight line at the observed slope would need under the observed 2026 pace. Black steps: real incoming margin between published absolute snapshots.</p>
+  <canvas id="cMargin" width="1100" height="280"></canvas>
+  <canvas id="cRate" width="1100" height="240"></canvas>
+</section>
+
+<section class="card">
+  <h2>Distribution of max deviation from a straight line (18:15–20:15)</h2>
+  <canvas id="cHist" width="1100" height="220"></canvas>
+</section>
+
+<section class="card">
+  <h2>All models</h2>
+  <div id="tableWrap" class="small">Press “Run all models”. (Headless numbers: <code>results/headless_results.md</code>.)</div>
+</section>
+
+<section class="card">
+  <h2>Reference: the real 2022 count (TSE 2022 boletins, reception time)</h2>
+  <p class="small">Bolsonaro − Lula gap vs time in 2022, rebuilt from 472,028 boletins. Shows what an actual cumulative count looked like.</p>
+  <canvas id="c2022" width="1100" height="260"></canvas>
+  <div id="ref2022" class="small"></div>
+</section>
+<footer class="small">Static page; all computation in <code>sim.js</code> (also runs headless under node). Data: TSE resultados JSON (2026), TSE dados abertos boletim de urna (2022), Urna Aberta (stored 2026 series and 2022 reconstruction).</footer>
+<script type="module" src="app.js"></script>
+</body>
+</html>
